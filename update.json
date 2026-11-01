@@ -3,9 +3,9 @@
     "zoteroreviewassistant@alima-webdev.com": {
       "updates": [
         {
-          "version": "2.0.3",
-          "update_link": "https://github.com/alima-webdev/zotero-review-assistant/releases/download/v2.0.3/zotero-review-assistant.xpi",
-          "update_hash": "sha512:1b8b42e06785d892fa089f0e3a295632b483c9932288698dd03f046904f7018b5dafdecf1b6e47524790d32b38baea079cef65f49db8bcbf61e20de9794121aa",
+          "version": "2.0.4",
+          "update_link": "https://github.com/ethaeral/zotero-review-assistant-latest/releases/download/v2.0.4/zotero-review-assistant.xpi",
+          "update_hash": "sha512:da42abd5f20e080602f856bdb311db8dfffcfa8ae66ad90c68a905b031ff4cf83b6e1998a819927573cca5c23a878abac052b205877037a14131fa3492ceb0ce",
           "applications": {
             "zotero": {
               "strict_min_version": "6.999",
