@@ -22,7 +22,7 @@ This plugin for Zotero aims to streamline the process of organizing articles for
 ## Installation
 
 1. **Download the plugin**
-    - Go to the [Releases](https://github.com/alima-webdev/zotero-review-assistant/releases) section and download the latest `.xpi` file.
+    - Go to the [Releases](https://github.com/ethaeral/zotero-review-assistant-latest/releases) section and download the latest `.xpi` file.
 
 2. **Install in Zotero**
     - Open Zotero
