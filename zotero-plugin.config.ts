@@ -42,7 +42,7 @@ export default defineConfig({
                 // Global variables
                 define: {
                     referenceName: `"${pluginInfo.namespace}"`,
-                    pluginLogPath: `"${process.env.ZOTERO_PLUGIN_LOG_PATH}"`,
+                    pluginLogPath: JSON.stringify(process.env.ZOTERO_PLUGIN_LOG_PATH ?? ""),
                 },
 
                 // Post CSS + Tailwind
@@ -66,7 +66,7 @@ export default defineConfig({
                 outdir: ".scaffold/build/addon",
                 define: {
                     referenceName: `"${pluginInfo.namespace}"`,
-                    pluginLogPath: `"${process.env.ZOTERO_PLUGIN_LOG_PATH}"`,
+                    pluginLogPath: JSON.stringify(process.env.ZOTERO_PLUGIN_LOG_PATH ?? ""),
                 },
             },
         ],

@@ -38,7 +38,7 @@ function initPreferencesPane(attempt = 0) {
     const pluginInfo = readPluginInfoFromDom()
     if (!pluginInfo) {
         if (attempt >= MAX_INIT_ATTEMPTS) {
-            Zotero.logError("Zotero Review Assistant: preferences pane container not found")
+            Zotero.logError(new Error("Zotero Review Assistant: preferences pane container not found"))
             return
         }
         window.setTimeout(() => initPreferencesPane(attempt + 1), INIT_RETRY_MS)
@@ -50,7 +50,7 @@ function initPreferencesPane(attempt = 0) {
     const app = document.querySelector(`[data-plugin-id="${pluginInfo.id}"] #app`) as HTMLElement | null
     if (!app) {
         if (attempt >= MAX_INIT_ATTEMPTS) {
-            Zotero.logError("Zotero Review Assistant: preferences pane #app mount point not found")
+            Zotero.logError(new Error("Zotero Review Assistant: preferences pane #app mount point not found"))
             return
         }
         window.setTimeout(() => initPreferencesPane(attempt + 1), INIT_RETRY_MS)

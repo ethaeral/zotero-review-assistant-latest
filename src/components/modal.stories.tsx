@@ -29,6 +29,7 @@ function ModalStory(props: Omit<ComponentProps<typeof Modal>, "openState" | "set
 }
 
 export const OpenWithTitle: Story = {
+    args: { openState: true, setOpenState: () => {}, children: null },
     render: () => (
         <ModalStory title="Generate PRISMA Diagram">
             <p>Modal body content for review workflows.</p>

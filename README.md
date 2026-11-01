@@ -41,7 +41,7 @@ This plugin for Zotero aims to streamline the process of organizing articles for
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 20+
+- [Node.js](https://nodejs.org/) 24 LTS (the scaffold and Vitest require a newer runtime than Node 20)
 - [pnpm](https://pnpm.io/) 10+ (see `packageManager` in [package.json](package.json))
 - A local [Zotero](https://www.zotero.org/download/) 7–10 install for live debugging
 

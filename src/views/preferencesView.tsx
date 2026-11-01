@@ -349,7 +349,7 @@ function PreferencePane() {
                                     {...field}
                                     id="pref-edit-status-shortcut"
                                     className="input"
-                                    setValue={(_name, keystroke: Keystroke) => {
+                                    setValue={(_name: string, keystroke: Keystroke) => {
                                         const combo = keystrokeToKeyCombination(keystroke)
                                         setEditStatusShortcut(combo)
                                         setPanelShortcutValue("editStatusShortcut", JSON.stringify(combo))
@@ -371,7 +371,7 @@ function PreferencePane() {
                                     {...field}
                                     id="pref-generate-prisma-shortcut"
                                     className="input"
-                                    setValue={(_name, keystroke: Keystroke) => {
+                                    setValue={(_name: string, keystroke: Keystroke) => {
                                         const combo = keystrokeToKeyCombination(keystroke)
                                         setGeneratePRISMAShortcut(combo)
                                         setPanelShortcutValue("generatePRISMAShortcut", JSON.stringify(combo))

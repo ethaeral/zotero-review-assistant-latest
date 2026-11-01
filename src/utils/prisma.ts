@@ -11,45 +11,28 @@ export async function generatePrismaFromTemplate(prismaData: Record<string, unkn
     const PizZipUtils = await require("pizzip/utils");
     const Docxtemplater = await require("docxtemplater");
 
-    return new Promise((resolve, reject) => {
-        const typeDocx =
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-        // Template path
-        const templatePath = getPluginInfo().rootURI + "/assets/template.docx";
+    const typeDocx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const templatePath = getPluginInfo().rootURI.replace(/\/?$/, "/") + "assets/template.docx";
+    const content = await new Promise<string>((resolve, reject) => {
         PizZipUtils.getBinaryContent(
             templatePath,
-            async (error: any, content: any) => {
-                const zip = new PizZip(content);
-                const doc = new Docxtemplater(zip, {
-                    paragraphLoop: true,
-                    linebreaks: true,
-                });
-                doc.render(prismaData);
-
-                const blob = doc.getZip().generate({
-                    type: "blob",
-                    mimeType: typeDocx,
-                    // compression: DEFLATE adds a compression step.
-                    // For a 50MB output document, expect 500ms additional CPU time
-                    compression: "DEFLATE",
-                });
-
-                // Show filepicker dialog to ask the user where to save it
-                const outputPath = await showFilePicker(
-                    typeDocx,
-                    FilePicker.filterAll,
-                    "prisma",
-                );
-                if (!outputPath) reject(false);
-
-                const outputFile = Zotero.File.pathToFile(outputPath || "");
-                const buffer = await blob.arrayBuffer();
-                await Zotero.File.putContentsAsync(outputFile, buffer);
-                resolve(true);
+            (error: unknown, content: string) => {
+                if (error) reject(error);
+                else resolve(content);
             },
         );
     });
+
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    doc.render(prismaData);
+
+    const outputPath = await showFilePicker(typeDocx, FilePicker.filterAll, "prisma");
+    if (!outputPath) return false;
+
+    const buffer = doc.getZip().generate({ type: "arraybuffer", compression: "DEFLATE" });
+    await Zotero.File.putContentsAsync(Zotero.File.pathToFile(outputPath), buffer);
+    return true;
 }
 
 // export function getPrismaSectionFromName(name: string) {

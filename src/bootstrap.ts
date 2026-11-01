@@ -10,11 +10,11 @@ import { setPluginInfo } from "./utils/pluginInfo";
 
 type PluginWindow = Window & {
     [key: string]: {
-        init?: (props: StartupProps & { referenceName: string }) => void;
-        shutdown?: (props: unknown) => void;
+        init?: (props: StartupProps & { referenceName: string; window: Window }) => void | Promise<void>;
+        shutdown?: (props: unknown) => void | Promise<void>;
         uninstall?: () => void;
         onMainWindowLoad?: (props: { window: Window }) => void;
-        onMainWindowUnload?: (props: { window: Window }) => void;
+        onMainWindowUnload?: (props: { window: Window }) => void | Promise<void>;
     };
 };
 
@@ -22,8 +22,31 @@ function getMainWindowFromProps(props?: { window?: Window }) {
     return props?.window ?? Zotero.getMainWindow();
 }
 
-function getPluginApi(win: Window) {
-    return (win as PluginWindow)[referenceName];
+function getPluginApi(win: Window | null) {
+    return (win as PluginWindow | null)?.[referenceName];
+}
+
+let startupInfo: (StartupProps & { referenceName: string }) | undefined;
+let startupReady: Promise<unknown> | undefined;
+const windowInitializations = new WeakMap<Window, Promise<void>>();
+
+function initializeWindow(win: Window): Promise<void> {
+    if (!startupInfo) return Promise.resolve();
+    const existing = windowInitializations.get(win);
+    if (existing) return existing;
+
+    const initialization = (async () => {
+        if (!startupInfo) return;
+        if (!getPluginApi(win)?.init) {
+            Services.scriptloader.loadSubScript(startupInfo.rootURI + "index.js", win);
+        }
+        await getPluginApi(win)?.init?.({ ...startupInfo, window: win });
+    })().catch(error => {
+        windowInitializations.delete(win);
+        throw error;
+    });
+    windowInitializations.set(win, initialization);
+    return initialization;
 }
 
 // Install
@@ -42,15 +65,13 @@ type StartupProps = {
 async function startup({ id, version, rootURI }: StartupProps) {
     log("Startup", { id, version, rootURI, referenceName })
 
-    // Set the plugin info for internal use
-    setPluginInfo({ id, version, rootURI, referenceName })
-
     // Wait for Zotero to be ready
-    await Promise.all([
+    startupReady = Promise.all([
         Zotero.initializationPromise,
         Zotero.unlockPromise,
         Zotero.uiReadyPromise,
     ]);
+    await startupReady;
 
     // String 'rootURI' introduced in Zotero 7
     if (!rootURI) {
@@ -58,36 +79,38 @@ async function startup({ id, version, rootURI }: StartupProps) {
         rootURI = resourceURI.spec;
     }
 
-    const win = Zotero.getMainWindow();
+    rootURI = rootURI.replace(/\/?$/, "/");
+    startupInfo = { id, version, rootURI, referenceName };
+    setPluginInfo(startupInfo);
 
-    // UI
-    await Services.scriptloader.loadSubScript(rootURI + "/index.js", win);
-
-    getPluginApi(win)?.init?.({ id, version, rootURI, referenceName });
-}
-
-function onMainWindowLoad(props: { window?: Window }) {
-    log("onMainWindowLoad", props)
-    const win = getMainWindowFromProps(props);
-    const api = getPluginApi(win);
-    if (api?.onMainWindowLoad) {
-        api.onMainWindowLoad({ window: win });
+    for (const win of Zotero.getMainWindows()) {
+        await initializeWindow(win);
     }
 }
 
-function onMainWindowUnload(props: { window?: Window }) {
-    log("onMainWindowUnlad", props)
+async function onMainWindowLoad(props: { window?: Window }) {
+    log("onMainWindowLoad", props)
+    await startupReady;
+    const win = getMainWindowFromProps(props);
+    if (win) await initializeWindow(win);
+}
+
+async function onMainWindowUnload(props: { window?: Window }) {
+    log("onMainWindowUnload", props)
     const win = getMainWindowFromProps(props);
     const api = getPluginApi(win);
     if (api?.onMainWindowUnload) {
-        api.onMainWindowUnload({ window: win });
+        await api.onMainWindowUnload({ window: win });
     }
+    if (win) windowInitializations.delete(win);
 }
 
-function shutdown(props: unknown) {
+async function shutdown(props: unknown) {
     log("Shutdown", props)
-    const win = Zotero.getMainWindow();
-    getPluginApi(win)?.shutdown?.(props);
+    for (const win of Zotero.getMainWindows()) {
+        await getPluginApi(win)?.shutdown?.(props);
+        windowInitializations.delete(win);
+    }
 }
 
 function uninstall(props: unknown) {

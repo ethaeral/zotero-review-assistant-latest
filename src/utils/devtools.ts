@@ -1,11 +1,20 @@
 // Log to file
 export async function log(...message: any[]) {
     // Log on the console
-    if(Zotero.getMainWindow().console) Zotero.getMainWindow().console.log(...message)
-        else Zotero.log(JSON.stringify(message))
+    const console = Zotero.getMainWindow()?.console
+    const formattedMessage = message.map(m => {
+        try {
+            return typeof m === "object" ? JSON.stringify(m) : String(m);
+        } catch {
+            return String(m);
+        }
+    }).join(" ");
+    if (console) console.log(...message)
+    else Zotero.debug(formattedMessage)
 
     // Write it to file
-    if (pluginLogPath && pluginLogPath != "") {
+    if (!pluginLogPath || pluginLogPath === "undefined") return
+    try {
         const outputFile = Zotero.File.pathToFile(pluginLogPath || "");
         const now = new Date();
         const timestamp = `${(now.getMonth() + 1).toString().padStart(2, '0')}/` +
@@ -20,15 +29,11 @@ export async function log(...message: any[]) {
         } catch {
             existing = "";
         }
-        const formattedMessage = message.map(m => {
-            try {
-                return typeof m === "object" ? JSON.stringify(m) : String(m);
-            } catch {
-                return String(m);
-            }
-        }).join(" ");
         const newContent = `${existing}${timestamp} - ${formattedMessage}\n`;
         await Zotero.File.putContentsAsync(outputFile, newContent);
+    } catch (error) {
+        // An optional development log must never prevent the plugin from loading.
+        Zotero.logError(error instanceof Error ? error : new Error(String(error)));
     }
 }
 

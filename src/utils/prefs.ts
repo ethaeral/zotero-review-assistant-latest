@@ -15,15 +15,15 @@ function legacyBareKey(shortName: string): string {
     return `${getPluginInfo().referenceName}.${shortName}`
 }
 
-function readPref(key: string): usePrefValue {
-    return Zotero.Prefs.get(key, PREF_GLOBAL) as usePrefValue
+function readPref(key: string): usePrefValue | undefined {
+    return Zotero.Prefs.get(key, PREF_GLOBAL) as usePrefValue | undefined
 }
 
 function writePref(key: string, value: usePrefValue) {
     Zotero.Prefs.set(key, value, PREF_GLOBAL)
 }
 
-function migratePrefIfNeeded(shortName: string): usePrefValue {
+function migratePrefIfNeeded(shortName: string): usePrefValue | undefined {
     const key = prefKey(shortName)
     let value = readPref(key)
     if (value !== undefined) {
@@ -46,17 +46,17 @@ export function setZoteroPref(name: string, value: usePrefValue) {
     writePref(prefKey(name), value)
 }
 
-export function getZoteroPref(name: string): usePrefValue {
+export function getZoteroPref(name: string): usePrefValue | undefined {
     return migratePrefIfNeeded(name)
 }
 
 export function observeZoteroPref(
     shortName: string,
-    handler: (value: usePrefValue) => void,
-): number {
+    handler: (value: usePrefValue | undefined) => void,
+): ReturnType<typeof Zotero.Prefs.registerObserver> {
     return Zotero.Prefs.registerObserver(prefKey(shortName), handler, PREF_GLOBAL)
 }
 
-export function unobserveZoteroPref(observerId: number) {
+export function unobserveZoteroPref(observerId: ReturnType<typeof Zotero.Prefs.registerObserver>) {
     Zotero.Prefs.unregisterObserver(observerId)
 }

@@ -5,24 +5,28 @@ import { useEffect, useState } from "react"
 import { JSONFromString } from "../utils"
 
 // Types
-import { usePrefOptions, usePrefState, usePrefStateValue } from "../../types/types"
+import { usePrefOptions, usePrefState, usePrefStateValue, usePrefValue } from "../../types/types"
 import { getZoteroPref, observeZoteroPref, setZoteroPref, unobserveZoteroPref } from "../prefs"
+
+function decodePrefValue(value: usePrefValue | undefined, defaultValue: unknown, options: usePrefOptions): usePrefStateValue {
+    if (value === undefined) return defaultValue as usePrefStateValue
+    if (!options.parseJSON) return value
+    const parsed = JSONFromString(value as string, defaultValue)
+    return Array.isArray(defaultValue) && !Array.isArray(parsed) ? defaultValue : parsed
+}
 
 function resolveInitialPrefValue(
     prefName: string,
     defaultValue: unknown,
     options: usePrefOptions,
 ): usePrefStateValue {
-    let initialPrefValue = getZoteroPref(prefName)
+    const initialPrefValue = getZoteroPref(prefName)
 
     if (initialPrefValue === undefined) {
-        initialPrefValue = defaultValue
-        setZoteroPref(prefName, options.parseJSON ? JSON.stringify(defaultValue) : defaultValue)
-    } else if (options.parseJSON === true) {
-        initialPrefValue = JSONFromString(initialPrefValue as string, undefined)
+        setZoteroPref(prefName, options.parseJSON ? JSON.stringify(defaultValue) : defaultValue as usePrefValue)
     }
 
-    return initialPrefValue as usePrefStateValue
+    return decodePrefValue(initialPrefValue, defaultValue, options)
 }
 
 // Hook
@@ -46,17 +50,13 @@ export function usePref(
         }
 
         const observerId = observeZoteroPref(prefName, (value) => {
-            let newValue = value
-            if (options.parseJSON === true) {
-                newValue = JSONFromString(newValue as string, undefined)
-            }
-            setPrefState(newValue as usePrefStateValue)
+            setPrefState(decodePrefValue(value, defaultValue, options))
         })
 
         return () => {
             unobserveZoteroPref(observerId)
         }
-    }, [prefName, options.parseJSON, options.observe])
+    }, [prefName, defaultValue, options.parseJSON, options.observe])
 
     return [prefState, setPref]
 }

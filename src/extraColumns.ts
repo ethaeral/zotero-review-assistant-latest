@@ -2,25 +2,19 @@ import { ArticleStatus, PRISMACategory } from "./types/addon"
 import { getPRISMALabel, refreshItemTreeColumns, registerColumn, unregisterAllColumns } from "./utils/columns.utils"
 import { ensurePluginWindowApi } from "./utils/pluginWindowApi"
 import { getZoteroPref } from "./utils/prefs"
+import defaultPreferences from "./utils/prefs.default"
 
 import { JSONFromString } from "./utils/utils"
+
+function getArrayPref<T>(name: string, fallback: T[]): T[] {
+    const value = JSONFromString(getZoteroPref(name) as string, fallback)
+    return Array.isArray(value) ? value : fallback
+}
 
 export async function registerExtraColumns(id: string) {
 
     await unregisterAllColumns()
     ensurePluginWindowApi(Zotero.getMainWindow())
-
-    // Prefs
-    const statusList = JSONFromString(getZoteroPref("statusList") as string) as ArticleStatus[]
-    const prismaCategories = JSONFromString(getZoteroPref("prismaCategories") as string) as PRISMACategory[]
-    const prismaTagPrefix = getZoteroPref("prismaTagPrefix") as string
-    const commentsTagPrefix = getZoteroPref("commentsTagPrefix") as string
-
-    // await log("Prefs")
-    // await log("- statusList", statusList)
-    // await log("- prismaCategories", prismaCategories)
-    // await log("- prismaTagPrefix", prismaTagPrefix)
-    // await log("- commentsTagPrefix", commentsTagPrefix)
 
     // Hooks
     // -- Status
@@ -33,6 +27,7 @@ export async function registerExtraColumns(id: string) {
         width: "100px",
         zoteroPersist: ["width", "hidden", "sortDirection"],
         dataProvider: (item: Zotero.Item, _) => {
+            const statusList = getArrayPref<ArticleStatus>("statusList", defaultPreferences.statusList)
             return JSON.stringify(statusList.filter(status => item.hasTag(status.tag)))
         },
         renderCell: (index: number, rawData: string, column: any): HTMLElement => {
@@ -49,7 +44,7 @@ export async function registerExtraColumns(id: string) {
                     const element = Zotero.getMainWindow().document.createElement("span")
                     element.className = `rt-badge ${item.invertTextColor ? "invert-text" : ""}`
                     element.style.backgroundColor = item.color
-                    element.innerHTML = item.label
+                    element.textContent = item.label
                     return element
                 }).forEach(spanElement => {
                     element.append(spanElement)
@@ -76,11 +71,9 @@ export async function registerExtraColumns(id: string) {
         zoteroPersist: ["width", "hidden", "sortDirection"],
         dataProvider: (item: Zotero.Item, _: string) => {
             try {
-                let res = item.getTags().filter(tag => prismaCategories.find(cat => cat.tag == tag.tag))
-                if (res.length < 1) {
-                    return ""
-                }
-                return getPRISMALabel(res[0].tag.replace(prismaTagPrefix, ""))
+                const prismaCategories = getArrayPref<PRISMACategory>("prismaCategories", defaultPreferences.prismaCategories)
+                const category = prismaCategories.find(cat => item.hasTag(cat.tag))
+                return category ? getPRISMALabel(category.label) : ""
             } catch {
                 return ""
             }
@@ -97,6 +90,7 @@ export async function registerExtraColumns(id: string) {
         width: "200px",
         zoteroPersist: ["width", "hidden", "sortDirection"],
         dataProvider: (item: Zotero.Item, _: string) => {
+            const commentsTagPrefix = (getZoteroPref("commentsTagPrefix") ?? defaultPreferences.commentsTagPrefix) as string
             let res = item.getTags().filter(tag => tag.tag.startsWith(commentsTagPrefix))
             if (res.length < 1) {
                 return ""
