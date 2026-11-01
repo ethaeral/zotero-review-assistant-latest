@@ -72,6 +72,12 @@ export default defineConfig({
         ],
     },
 
+    release: {
+        bumpp: {
+            execute: "pnpm run build",
+        },
+    },
+
     // Dev server
     server: {
         asProxy: false,
