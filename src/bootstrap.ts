@@ -2,19 +2,32 @@
 import { log } from "./utils/devtools";
 import { setPluginInfo } from "./utils/pluginInfo";
 
-// import  from "../package.json"
-
 // Log when Zotero initializes the plugin
 // log("ZOTERO INIT")
 
 // Plugin Options
 // Use referenceName for the reference name to be used
 
-// Consts
-const mainWindow = Zotero.getMainWindow()
+type PluginWindow = Window & {
+    [key: string]: {
+        init?: (props: StartupProps & { referenceName: string }) => void;
+        shutdown?: (props: unknown) => void;
+        uninstall?: () => void;
+        onMainWindowLoad?: (props: { window: Window }) => void;
+        onMainWindowUnload?: (props: { window: Window }) => void;
+    };
+};
+
+function getMainWindowFromProps(props?: { window?: Window }) {
+    return props?.window ?? Zotero.getMainWindow();
+}
+
+function getPluginApi(win: Window) {
+    return (win as PluginWindow)[referenceName];
+}
 
 // Install
-function install(props) {
+function install(props: unknown) {
     log("Install", props)
     // registerPrefs()
     // startup()
@@ -44,40 +57,41 @@ async function startup({ id, version, rootURI }: StartupProps) {
         // @ts-ignore legacy support for Zotero 6
         rootURI = resourceURI.spec;
     }
-    
+
+    const win = Zotero.getMainWindow();
+
     // UI
-    // JS
-    await Services.scriptloader.loadSubScript(rootURI + "/index.js", Zotero.getMainWindow());
+    await Services.scriptloader.loadSubScript(rootURI + "/index.js", win);
 
-    // Init
-    Zotero.getMainWindow()[referenceName].init({ id, version, rootURI, referenceName });
+    getPluginApi(win)?.init?.({ id, version, rootURI, referenceName });
 }
 
-function onMainWindowLoad(props) {
+function onMainWindowLoad(props: { window?: Window }) {
     log("onMainWindowLoad", props)
-    if (mainWindow[referenceName].onMainWindowLoad) {
-        mainWindow[referenceName].onMainWindowLoad({ window });
+    const win = getMainWindowFromProps(props);
+    const api = getPluginApi(win);
+    if (api?.onMainWindowLoad) {
+        api.onMainWindowLoad({ window: win });
     }
 }
 
-function onMainWindowUnload(props) {
+function onMainWindowUnload(props: { window?: Window }) {
     log("onMainWindowUnlad", props)
-    if (mainWindow[referenceName].onMainWindowUnload) {
-        mainWindow[referenceName].onMainWindowUnload({ window });
+    const win = getMainWindowFromProps(props);
+    const api = getPluginApi(win);
+    if (api?.onMainWindowUnload) {
+        api.onMainWindowUnload({ window: win });
     }
 }
 
-function shutdown(props) {
+function shutdown(props: unknown) {
     log("Shutdown", props)
-    if (Zotero.getMainWindow()[referenceName].shutdown) {
-        Zotero.getMainWindow()[referenceName].shutdown(props);
-        // mainWindow[referenceName] = undefined
-    }
+    const win = Zotero.getMainWindow();
+    getPluginApi(win)?.shutdown?.(props);
 }
 
-function uninstall(props) {
+function uninstall(props: unknown) {
     log("Uninstall", props)
-    if (mainWindow[referenceName].uninstall) {
-        mainWindow[referenceName].uninstall();
-    }
+    const win = Zotero.getMainWindow();
+    getPluginApi(win)?.uninstall?.();
 }

@@ -38,7 +38,7 @@ type KeyboardShortcutOptions = {
     callback: () => void;
 }
 
-type MenuItem = {
+export type MenuItem = {
     type: "menuseparator" | "menuitem" | "menu",
     label?: string,
     image?: string,

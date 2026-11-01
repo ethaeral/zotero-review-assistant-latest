@@ -1,92 +1,101 @@
 import { ArticleStatus, PRISMACategory } from "../types/addon"
 import { log } from "./devtools"
 import { getPluginInfo } from "./pluginInfo"
+import { ensurePluginWindowApi } from "./pluginWindowApi"
 
+type SaveTxUndoOptions = {
+    undoAction: string
+    undoActionArgs?: { count: number }
+}
 
-// const extraColumns: string[] = []
-// export const extraColumns: string[] = []
-export async function registerColumn(options: _ZoteroTypes.ItemTreeManager.ItemTreeColumnOptions) {
-    log("columns.utils: registerColumn", options)
-    // log(Object.keys(Zotero.getMainWindow()))
-    // log(getPluginInfo().referenceName)
-    if (!Zotero.getMainWindow()[getPluginInfo().referenceName]) { return; }
-    if (!Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns) { return; }
-    // const extraColumns: string[] = []
-    // Ensure the column options includes dataKey
-    if (Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns.includes(options.dataKey)) return
+function saveItemTx(item: Zotero.Item, options?: SaveTxUndoOptions) {
+    if (options) {
+        item.saveTx(options as Parameters<Zotero.Item["saveTx"]>[0])
+        return
+    }
+    item.saveTx()
+}
 
-    // const pluginID = getPluginInfo().id + "-" + extraColumns.length
+export async function refreshItemTreeColumns() {
+    if (typeof Zotero.ItemTreeManager.refreshColumns === "function") {
+        await Zotero.ItemTreeManager.refreshColumns()
+    }
+}
 
-    // Column Options
-    const columnOptions = { ...options } //, pluginID }
+export async function registerColumn(
+    options: _ZoteroTypes.ItemTreeManager.ItemTreeColumnOptions,
+): Promise<string | false> {
+    await log("columns.utils: registerColumn", options.dataKey)
+
+    const win = Zotero.getMainWindow()
+    const api = ensurePluginWindowApi(win)
+
+    const columnOptions = {
+        enabledTreeIDs: ["main"],
+        pluginID: getPluginInfo().id,
+        ...options,
+    }
+
+    const alreadyRegistered = api.extraColumns.some(
+        (key) => key === columnOptions.dataKey || key.endsWith(`-${columnOptions.dataKey}`),
+    )
+    if (alreadyRegistered) {
+        return columnOptions.dataKey
+    }
 
     const registerColumnFn =
-        Zotero.ItemTreeManager.registerColumn ||
-        Zotero.ItemTreeManager.registerColumns;
-        // @ts-ignore
-    const dataKey = await registerColumnFn.apply(Zotero.ItemTreeManager, [{ ...columnOptions }])
-    // const dataKey = await Zotero.ItemTreeManager.registerColumn(columnOptions)
-    if (!dataKey) return;
+        Zotero.ItemTreeManager.registerColumn || Zotero.ItemTreeManager.registerColumns
 
-    Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns.push(dataKey)
-    // await Zotero.ItemTreeManager.refreshColumns()
+    const dataKey = await registerColumnFn.apply(Zotero.ItemTreeManager, [columnOptions])
+    if (!dataKey) {
+        return false
+    }
+
+    if (!api.extraColumns.includes(dataKey)) {
+        api.extraColumns.push(dataKey)
+    }
+
+    return dataKey
 }
 
 export async function unregisterAllColumns() {
-    Zotero.getMainWindow().console.log(Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns)
-    if (!Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns) return
-    if (Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns.length === 0) return
-    await Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns.map(async (dataKey: string) => {
+    const win = Zotero.getMainWindow()
+    const api = ensurePluginWindowApi(win)
+    if (api.extraColumns.length === 0) {
+        return
+    }
+
+    for (const dataKey of [...api.extraColumns]) {
         await Zotero.ItemTreeManager.unregisterColumn(dataKey)
-    })
-    Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns = []
+    }
+    api.extraColumns = []
 }
 
 export function setItemStatus(statusList: ArticleStatus[], status: ArticleStatus) {
-
-    // Get the selected items
     const selectedArticles = ZoteroPane.getSelectedItems()
     replaceTags({
         articles: selectedArticles,
         removeTags: statusList.map(stat => stat.tag) as string[],
-        newTags: status ? [status.tag] : []
+        newTags: status ? [status.tag] : [],
     })
-
-    // // Loop through the articles and set the status
-    // selectedArticles.map(article => {
-
-    //     // Remove the old status tag
-    //     statusList.map(stat => {
-    //         if (article.hasTag(stat.tag)) article.removeTag(stat.tag)
-    //     })
-    //     // statuses.filter(status => item.hasTag(status.tag))
-    //     // Add the new status tag
-    //     if (status.tag != "") article.addTag(status.tag)
-
-    //     // Save the article
-    //     article.saveTx()
-    // })
 }
 
 export function setItemComments(commentsTagPrefix: string, comments: string) {
-
-    // Selected articles
     const selectedArticles = ZoteroPane.getSelectedItems()
+    const reasonTag = commentsTagPrefix + comments
 
-    // Get the reason tag
-    const reasonTag = commentsTagPrefix + comments;
-
-    // Update the exclusion criteria
     for (const item of selectedArticles) {
-        // Remove the exclusion criteria
         item.getTags().map((tag) => {
-            if (tag.tag.includes(commentsTagPrefix)) item.removeTag(tag.tag);
-        });
+            if (tag.tag.includes(commentsTagPrefix)) item.removeTag(tag.tag)
+        })
 
         if (comments != "") {
-            item.addTag(reasonTag);
+            item.addTag(reasonTag)
         }
-        item.saveTx();
+        saveItemTx(item, {
+            undoAction: "undo-action-edit-item-tags",
+            undoActionArgs: { count: 1 },
+        })
     }
 }
 
@@ -95,41 +104,33 @@ export function getPRISMALabel(value: string): string {
 }
 
 export function setItemPRISMACategory(categoryList: PRISMACategory[], newCategory: PRISMACategory) {
-
-    // Selected articles
     const selectedArticles = ZoteroPane.getSelectedItems()
-
     replaceTags({
         articles: selectedArticles,
         removeTags: categoryList.map(stat => stat.tag) as string[],
-        newTags: newCategory ? [newCategory.tag] : []
+        newTags: newCategory ? [newCategory.tag] : [],
     })
-
 }
 
 type ReplaceTagsArgs = {
-    articles: Zotero.Item[],
-    removeTags: string[],
+    articles: Zotero.Item[]
+    removeTags: string[]
     newTags: string[]
 }
+
 function replaceTags({ articles, removeTags, newTags }: ReplaceTagsArgs) {
-
-    // Loop through the articles and set the status
     articles.map(article => {
-
-        // Remove the old status tag
         removeTags.map(tag => {
             if (article.hasTag(tag)) article.removeTag(tag)
         })
 
-        // Add the new status tag
-
-        // Remove the old status tag
         newTags.map(tag => {
             if (tag && tag != "") article.addTag(tag)
         })
 
-        // Save the article
-        article.saveTx()
+        saveItemTx(article, {
+            undoAction: "undo-action-edit-item-tags",
+            undoActionArgs: { count: 1 },
+        })
     })
 }

@@ -18,20 +18,26 @@ export function generateMenuDOM(element: MenuItem) {
 
     let item = document.createXULElement(`${element.type}`)
     switch (element.type) {
+        case "menuseparator":
+            return item
         case "menuitem":
             item.classList.add("menuitem-iconic")
-            item.setAttribute("label", element.label)
+            item.setAttribute("label", element.label ?? "")
             if (element.image) item.setAttribute("image", element.image)
-            if (element.action) item.addEventListener("command", element.action)
+            if (element.action) {
+                item.addEventListener("command", (event) => {
+                    element.action?.(event as CommandEvent)
+                })
+            }
             break;
         case "menu":
-            const popup = document.createXULElement("menupopup")
-            element.children.map(child => {
+            const popup = document.createXULElement("menupopup");
+            (element.children ?? []).map((child: MenuItem) => {
                 const childMarkup = generateMenuDOM(child)
                 popup.appendChild(childMarkup)
             })
             item.appendChild(popup)
-            item.setAttribute("label", element.label)
+            item.setAttribute("label", element.label ?? "")
             if (element.image) item.setAttribute("image", element.image)
             break;
     }
@@ -53,7 +59,7 @@ export function useContextMenu(selector: string = "#zotero-itemmenu", items: Men
     useEffect(() => {
         
         const popup = document.querySelector(selector)
-        Zotero.log("useContextMenu", popup)
+        Zotero.debug(`useContextMenu: ${selector}`)
         if (!popup) return
         const elements = items.map(item => {
             const element = generateMenuDOM(item)

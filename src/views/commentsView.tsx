@@ -10,13 +10,13 @@ import { usePref } from "../utils/hooks"
 import { ReactElement, Ref, useImperativeHandle, useRef, useState } from "react"
 import { usePrefStateFunction } from "../types/types"
 import { getTagsFromCurrentLibrary, mergeRefs } from "../utils/utils";
-import { AutocompleteComponent, useAutocomplete } from "../components/hooks/autocomplete";
+import { useAutocomplete } from "../components/hooks/autocomplete";
 import defaultPreferences from "../utils/prefs.default";
 
 export interface CommentsViewComponent {
     editComments: () => void
 }
-export default function CommentsView({ ref }: { ref: Ref<CommentsViewComponent> }): ReactElement & CommentsViewComponent {
+export default function CommentsView({ ref }: { ref: Ref<CommentsViewComponent> }): ReactElement {
 
     // Prefs
     const [commentsTagPrefix, _] = usePref("commentsTagPrefix", defaultPreferences.commentsTagPrefix, { observe: true }) as [string, usePrefStateFunction]
@@ -27,8 +27,6 @@ export default function CommentsView({ ref }: { ref: Ref<CommentsViewComponent> 
 
     // Refs
     const inputRef = useRef<HTMLInputElement>(null)
-    const autocompleteRef = useRef<AutocompleteComponent>(null)
-
     // Form
     const { register, control, handleSubmit, setValue, setFocus } = useForm<FormData>()
 

@@ -6,7 +6,7 @@ const { FilePicker } = ChromeUtils.importESModule(
     "chrome://zotero/content/modules/filePicker.mjs",
 );
 
-export async function generatePrismaFromTemplate(prismaData) {
+export async function generatePrismaFromTemplate(prismaData: Record<string, unknown>) {
     const PizZip = await require("pizzip");
     const PizZipUtils = await require("pizzip/utils");
     const Docxtemplater = await require("docxtemplater");
@@ -44,10 +44,8 @@ export async function generatePrismaFromTemplate(prismaData) {
                 if (!outputPath) reject(false);
 
                 const outputFile = Zotero.File.pathToFile(outputPath || "");
-                const file = new File([blob], "prisma.docx", {
-                    type: typeDocx,
-                });
-                Zotero.File.putContentsAsync(outputFile, file);
+                const buffer = await blob.arrayBuffer();
+                await Zotero.File.putContentsAsync(outputFile, buffer);
                 resolve(true);
             },
         );

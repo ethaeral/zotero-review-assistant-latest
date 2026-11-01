@@ -1,79 +1,180 @@
 import { ArticleStatus } from "./types/addon"
-import { MenuItem, usePrefStateFunction } from "./types/types"
+import { MenuItem } from "./types/types"
 import { setItemStatus } from "./utils/columns.utils"
-import { log } from "./utils/devtools"
+import defaultPreferences from "./utils/prefs.default"
 import { generateMenuIcon } from "./utils/helpers"
 import { generateMenuDOM } from "./utils/hooks/menu"
-import { usePrefWithoutHook } from "./utils/hooks/prefs"
 import { getPluginInfo } from "./utils/pluginInfo"
-import defaultPreferences from "./utils/prefs.default"
+import { getZoteroPref } from "./utils/prefs"
+import { JSONFromString } from "./utils/utils"
 
-export async function registerReviewContextMenu(id: string, version: string, rootURI: string, referenceName: string) {
-    // Preferences
-    const [statusList, setStatusList] = usePrefWithoutHook("statusList", defaultPreferences.statusList, { parseJSON: true, observe: true }) as [ArticleStatus[], usePrefStateFunction]
+const ZRA_MENU_ATTR = "data-zra-menu"
+const registeredMenuManagerIds: string[] = []
 
-    log(statusList)
-
-    // Context Menu
-    registerContextMenu("#zotero-itemmenu", [
-        { type: "menuseparator" },
-        {
-            type: "menu", label: "Review",
-            // image: getPluginInfo().rootURI + "assets/icon.png",
-            children: [...statusList.map((status: ArticleStatus) => {
-                return {
-                    type: "menuitem", label: status.label, image: generateMenuIcon(status.color), action: (_) => {
-                        setItemStatus(statusList, status)
-                    }
-                }
-            }) as MenuItem[],
-            { type: "menuseparator" },
-            {
-                type: "menuitem", label: "Edit Review Info", action: () => {
-                    log("Edit Review Info clicked")
-                    // if (typeof Zotero === "undefined" || !Zotero.getMainWindow()) return
-                    // if (typeof (Zotero.getMainWindow() as any).editStatus !== "function") return
-                    Zotero.getMainWindow()[referenceName].editStatus()
-                }
-            },
-            { type: "menuseparator" },
-            {
-                type: "menuitem", label: "Generate PRISMA Diagram", action: () => {
-                    // if (typeof Zotero === "undefined" || !Zotero.getMainWindow()) return
-                    // if (typeof (Zotero.getMainWindow() as any).generatePRISMADiagram !== "function") return
-                    Zotero.getMainWindow()[referenceName].generatePRISMADiagram()
-                }
-            }]
-        },
-    ])
+type MenuManagerApi = {
+    registerMenu: (options: Record<string, unknown>) => void
+    unregisterMenu: (menuID: string) => void
 }
-/**
- * Custom hook to create and manage a context menu.
- *
- * @param {string} [selector="zotero-itemmenu"] - The ID of the DOM element where the context menu will be appended.
- * @param {MenuItem[]} [items=[]] - An array of menu items to be added to the context menu.
- * @param {any[]} [deps=[]] - An array of dependencies that will trigger the effect when changed.
- *
- * @returns {void}
- *
- * @example
- * useContextMenu("custom-menu", [{ label: "Item 1", action: () => console.log("Item 1 clicked") }], [dependency]);
- */
-export async function registerContextMenu(selector: string = "zotero-itemmenu", items: MenuItem[] = []) {
 
-    await log("registerContextMenu called ", selector)
-    const popup = document.querySelector(selector)
-    await log("Popup: ", popup)
-    if (!popup) return
-    const elements = items.map(item => {
-        const element = generateMenuDOM(item)
-        log("Element created:", element)
+function getMenuManager(): MenuManagerApi | undefined {
+    return (Zotero as typeof Zotero & { MenuManager?: MenuManagerApi }).MenuManager
+}
 
-        if (!popup.lastElementChild) return
-        popup.lastElementChild.after(element)
-        return element
+function getStatusList(): ArticleStatus[] {
+    const raw = getZoteroPref("statusList")
+    if (!raw) {
+        return defaultPreferences.statusList
+    }
+    return JSONFromString(raw as string, defaultPreferences.statusList) as ArticleStatus[]
+}
+
+function buildMenuItems(referenceName: string): MenuItem[] {
+    const statusList = getStatusList()
+    const win = Zotero.getMainWindow() as Window & Record<string, { editStatus?: () => void; generatePRISMADiagram?: () => void } | undefined>
+
+    const items: MenuItem[] = [{ type: "menuseparator" }]
+
+    for (const status of statusList) {
+        items.push({
+            type: "menuitem",
+            label: `Review: ${status.label}`,
+            image: status.color ? generateMenuIcon(status.color) : undefined,
+            action: () => {
+                setItemStatus(statusList, status)
+            },
+        })
+    }
+
+    items.push({ type: "menuseparator" })
+    items.push({
+        type: "menuitem",
+        label: "Edit Review Info",
+        action: () => {
+            win[referenceName]?.editStatus?.()
+        },
     })
-    return () => {
-        elements.map(element => element?.remove())
+    items.push({
+        type: "menuitem",
+        label: "Generate PRISMA Diagram",
+        action: () => {
+            win[referenceName]?.generatePRISMADiagram?.()
+        },
+    })
+
+    return items
+}
+
+function unregisterMenuManagerMenus() {
+    const menuManager = getMenuManager()
+    if (!menuManager) {
+        return
+    }
+    for (const menuID of registeredMenuManagerIds) {
+        try {
+            menuManager.unregisterMenu(menuID)
+        } catch {
+            /* menu may already be gone */
+        }
+    }
+    registeredMenuManagerIds.length = 0
+}
+
+function registerMenuManagerMenus(referenceName: string) {
+    const menuManager = getMenuManager()
+    if (!menuManager) {
+        return false
+    }
+
+    unregisterMenuManagerMenus()
+
+    const { id: pluginID } = getPluginInfo()
+    const statusList = getStatusList()
+    const win = Zotero.getMainWindow() as Window & Record<string, { editStatus?: () => void; generatePRISMADiagram?: () => void } | undefined>
+
+    const register = (menuID: string, options: Record<string, unknown>) => {
+        menuManager.registerMenu({
+            target: "main/library/item",
+            pluginID,
+            menuID,
+            ...options,
+        })
+        registeredMenuManagerIds.push(menuID)
+    }
+
+    register("zra-separator-start", { menuType: "separator" })
+
+    statusList.forEach((status, index) => {
+        register(`zra-status-${index}`, {
+            menuType: "menuitem",
+            label: `Review: ${status.label}`,
+            onCommand: () => setItemStatus(statusList, status),
+        })
+    })
+
+    register("zra-separator-mid", { menuType: "separator" })
+    register("zra-edit-review", {
+        menuType: "menuitem",
+        label: "Edit Review Info",
+        onCommand: () => win[referenceName]?.editStatus?.(),
+    })
+    register("zra-generate-prisma", {
+        menuType: "menuitem",
+        label: "Generate PRISMA Diagram",
+        onCommand: () => win[referenceName]?.generatePRISMADiagram?.(),
+    })
+
+    return true
+}
+
+function removeLegacyContextMenu(win: Window) {
+    win.document.querySelectorAll(`[${ZRA_MENU_ATTR}]`).forEach(node => node.remove())
+}
+
+function registerLegacyContextMenu(win: Window, referenceName: string) {
+    removeLegacyContextMenu(win)
+
+    const popup = win.document.querySelector("#zotero-itemmenu")
+    if (!popup) {
+        return
+    }
+
+    const items = buildMenuItems(referenceName)
+    for (const item of items) {
+        const element = generateMenuDOM(item)
+        element.setAttribute(ZRA_MENU_ATTR, "1")
+        popup.appendChild(element)
+    }
+}
+
+export async function registerReviewContextMenu(win: Window) {
+    const { referenceName } = getPluginInfo()
+
+    if (!registerMenuManagerMenus(referenceName)) {
+        registerLegacyContextMenu(win, referenceName)
+    }
+}
+
+export function unregisterReviewContextMenu(win: Window) {
+    removeLegacyContextMenu(win)
+}
+
+export function unregisterAllReviewMenus() {
+    unregisterMenuManagerMenus()
+    for (const win of Zotero.getMainWindows()) {
+        removeLegacyContextMenu(win)
+    }
+}
+
+/** @deprecated Use registerReviewContextMenu(win) */
+export async function registerContextMenu(selector: string = "#zotero-itemmenu", items: MenuItem[] = []) {
+    const win = Zotero.getMainWindow()
+    const popup = win.document.querySelector(selector)
+    if (!popup) {
+        return
+    }
+    for (const item of items) {
+        const element = generateMenuDOM(item)
+        element.setAttribute(ZRA_MENU_ATTR, "1")
+        popup.appendChild(element)
     }
 }

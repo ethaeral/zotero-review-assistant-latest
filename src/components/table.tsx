@@ -36,11 +36,11 @@ function Table({ columns, data, onDoubleClick = (item: any, index: number) => { 
             <thead>
                 <tr>
                     {columns.map((header, index) => (
-                        <td key={index} className="py-1 border-b border-[#e5e5e5] dark:border-[#2b2b2b] text-bold" >
+                        <th key={index} scope="col" className="py-1 border-b border-[#e5e5e5] dark:border-[#2b2b2b] text-bold" >
                             <div className={`my-1 px-2 ${index <= columns.length - 2 ? "border-e border-[#e5e5e5] dark:border-[#2b2b2b]" : ""}`}>
                                 {header.label}
                             </div>
-                        </td>
+                        </th>
                     ))}
                 </tr>
             </thead>

@@ -35,7 +35,7 @@ export function usePref(prefName: string, defaultValue: any = "", options: usePr
 
     // Observe the pref for changes
     if (options.observe === true) {
-        Zotero.Prefs.registerObserver(`${getPluginInfo().referenceName}.${name}`, async (value: usePrefStateValue) => {
+        Zotero.Prefs.registerObserver(`${getPluginInfo().referenceName}.${prefName}`, async (value: usePrefStateValue) => {
             let newValue = value
             if (options.parseJSON === true) {
                 newValue = JSONFromString(newValue as string, undefined)
@@ -50,7 +50,7 @@ export function usePref(prefName: string, defaultValue: any = "", options: usePr
 }
 
 // Without Hook
-export function usePrefWithoutHook(prefName: string, defaultValue: any = "", options: usePrefOptions = { parseJSON: false, observe: false }): Pref {
+export function usePrefWithoutHook(prefName: string, defaultValue: any = "", options: usePrefOptions = { parseJSON: false, observe: false }): usePrefState {
 
     // Get the initial value
     let initialPrefValue = getZoteroPref(prefName)

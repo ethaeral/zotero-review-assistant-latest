@@ -1,5 +1,5 @@
 // External Dependencies
-import { ReactNode, Ref, useEffect, useImperativeHandle, useRef } from "react"
+import { ReactElement, ReactNode, Ref, useEffect, useId, useImperativeHandle } from "react"
 
 // Internal Dependencies
 import { useKeyboardShortcut } from "../utils/hooks"
@@ -10,7 +10,7 @@ import { log } from "../utils/devtools"
 import { X } from "lucide-react"
 
 type ModalProps = {
-    ref?: Ref,
+    ref?: Ref<ModalComponent | null>,
     children: ReactNode,
 
     openState: boolean,
@@ -24,7 +24,8 @@ type ModalProps = {
 export interface ModalComponent {
     close: () => void
 }
-function Modal({ ref, children, openState, setOpenState, title, onOpen, onClose }: ModalProps): ReactElement & ModalComponent {
+function Modal({ ref, children, openState, setOpenState, title, onOpen, onClose }: ModalProps): ReactElement {
+    const titleId = useId()
 
     // Open
     useEffect(() => {
@@ -61,21 +62,21 @@ function Modal({ ref, children, openState, setOpenState, title, onOpen, onClose 
                 modal
                 absolute inset-0 z-50
                 flex justify-center items-center
-                bg-black/75
+                bg-black/75 dark:bg-black/80
                 ${openState ? "" : "invisible"}
             `}
+            aria-hidden={!openState}
             onClick={onClickHandler}
         >
-            <div className={`
-                    inner-modal
-                    px-8 py-6 rounded
-                    text-slate-950
-                    bg-slate-50
-                `} tabIndex={-1}>
-                <div role="dialog" aria-modal="true">
+            <div className="inner-modal px-8 py-6 rounded" tabIndex={-1}>
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={title ? titleId : undefined}
+                >
                     {title ? (
                         <header className="flex justify-between items-center">
-                            <h2 className="modal-title text-2xl font-bold mb-4">
+                            <h2 id={titleId} className="modal-title text-2xl font-bold mb-4">
                                 {title}
                             </h2>
                         </header>

@@ -1,9 +1,9 @@
 # Zotero Review Assistant Plugin
 
-[![zotero target version](https://img.shields.io/badge/Zotero-7-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
+[![zotero target version](https://img.shields.io/badge/Zotero-7--10-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
 [![Using Zotero Plugin Template](https://img.shields.io/badge/Using-Zotero%20Plugin%20Template-blue?style=flat-square&logo=github)](https://github.com/windingwind/zotero-plugin-template)
 
-### IMPORTANT: This plugin is only compatible with Zotero 7
+### IMPORTANT: This plugin supports Zotero 7 through 10 (including 10.0.7)
 
 https://github.com/alima-webdev/zotero-review-assistant/assets/65861197/d350ec1c-214d-4fc3-9f4b-bd23c549a4fd
 
@@ -18,6 +18,12 @@ This plugin for Zotero aims to streamline the process of organizing articles for
 -   **PRISMA Flow Diagram Generation**: The plugin automates the creation of PRISMA flow diagrams, saving time and effort in reporting the flow of literature through the review process.
 -   **Customization**: The plugin is customizable to fit various review methodologies and reporting standards, ensuring flexibility for different research projects.
 -   **Intuitive Interface**: Designed with user experience in mind, the plugin offers a user-friendly interface that integrates seamlessly with Zotero's existing functionalities.
+
+## Troubleshooting
+
+- **Columns missing:** In the library, open **View → Columns** and enable **Status**, **PRISMA Category**, and **Status Comments**.
+- **Edit review info:** Select item(s) and press **Alt+S**, or use the **Review** items in the item right-click menu.
+- **Context menu on Zotero 7 vs 8+:** Zotero 8 and later use the official menu API; Zotero 7 uses compatible menu items appended to the library item menu. If menus look wrong after changing statuses, restart Zotero.
 
 ## Installation
 
@@ -34,6 +40,8 @@ This plugin for Zotero aims to streamline the process of organizing articles for
 ## Contribution
 
 Contributions to the plugin are welcome! If you have ideas for improvements or would like to report a bug, please open an issue on GitHub.
+
+See [TESTING.md](TESTING.md) for how to run unit tests, what to cover automatically, and the manual Zotero smoke checklist.
 
 ## License
 

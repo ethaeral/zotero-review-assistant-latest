@@ -40,7 +40,7 @@ async function initPreferencesPane() {
         return;
     }
 
-    document.querySelector("window").addEventListener("beforeunload", () => {
+    document.querySelector("window")?.addEventListener("beforeunload", () => {
         log("Unloading Preferences Pane")
     })
 

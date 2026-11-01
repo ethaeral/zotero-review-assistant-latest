@@ -1,6 +1,6 @@
 import { ArticleStatus, PRISMACategory } from "./types/addon"
-import { getPRISMALabel, registerColumn, unregisterAllColumns } from "./utils/columns.utils"
-import { getPluginInfo } from "./utils/pluginInfo"
+import { getPRISMALabel, refreshItemTreeColumns, registerColumn, unregisterAllColumns } from "./utils/columns.utils"
+import { ensurePluginWindowApi } from "./utils/pluginWindowApi"
 import { getZoteroPref } from "./utils/prefs"
 
 import { JSONFromString } from "./utils/utils"
@@ -8,9 +8,7 @@ import { JSONFromString } from "./utils/utils"
 export async function registerExtraColumns(id: string) {
 
     await unregisterAllColumns()
-    if (!Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns) {
-        Zotero.getMainWindow()[getPluginInfo().referenceName].extraColumns = []
-    }
+    ensurePluginWindowApi(Zotero.getMainWindow())
 
     // Prefs
     const statusList = JSONFromString(getZoteroPref("statusList") as string) as ArticleStatus[]
@@ -106,6 +104,8 @@ export async function registerExtraColumns(id: string) {
             return res[0].tag.replace(commentsTagPrefix, "")
         }
     })
+
+    await refreshItemTreeColumns()
 
     return { statusDataKey, prismaDataKey, commentsDataKey }
 }

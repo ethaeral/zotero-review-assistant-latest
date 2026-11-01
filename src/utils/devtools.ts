@@ -14,7 +14,12 @@ export async function log(...message: any[]) {
             `${now.getHours().toString().padStart(2, '0')}:` +
             `${now.getMinutes().toString().padStart(2, '0')}:` +
             `${now.getSeconds().toString().padStart(2, '0')}`;
-        const existing = await Zotero.File.getContentsAsync(outputFile).catch(() => "");
+        let existing = "";
+        try {
+            existing = (await Zotero.File.getContentsAsync(outputFile)) as string;
+        } catch {
+            existing = "";
+        }
         const formattedMessage = message.map(m => {
             try {
                 return typeof m === "object" ? JSON.stringify(m) : String(m);

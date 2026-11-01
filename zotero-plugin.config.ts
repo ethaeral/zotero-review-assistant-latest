@@ -74,7 +74,7 @@ export default defineConfig({
 
     // Dev server
     server: {
-        asProxy: true,
+        asProxy: false,
         devtools: true,
         startArgs: [],
     },

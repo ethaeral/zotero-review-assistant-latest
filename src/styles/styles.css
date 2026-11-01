@@ -34,9 +34,10 @@
     }
 
     &.btn-primary {
-        @apply !text-slate-50;
-        @apply bg-blue-500 hover:bg-blue-400;
-        @apply dark:bg-blue-600 dark:hover:bg-blue-500;
+        color: #ffffff !important;
+        background-color: #2563eb;
+        @apply hover:bg-blue-600;
+        @apply dark:bg-blue-700 dark:hover:bg-blue-600;
         @apply shadow-sm;
     }
 
@@ -50,11 +51,41 @@
 /* Form */
 .input {
     @apply p-2 m-0;
-    @apply border border-slate-200 rounded-sm;
+    @apply border rounded-sm;
     @apply text-sm;
-    @apply text-slate-950 bg-slate-100;
     @apply outline-none;
-    @apply focus:border-blue-400;
+    border-color: var(--color-border, #e2e8f0);
+    color: var(--fill-primary, #0f172a);
+    background-color: var(--material-toolbar, #f1f5f9);
+}
+
+.input:focus {
+    border-color: var(--color-accent, #60a5fa);
+}
+
+.inner-modal {
+    color: var(--fill-primary, #0f172a);
+    background-color: var(--material-background, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.autocomplete-dropdown {
+    border-color: var(--color-border, #e2e8f0);
+    background-color: var(--material-toolbar, #f8fafc);
+    color: var(--fill-primary, #0f172a);
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-background-hover, #e2e8f0);
+}
+
+.autocomplete-option-selected {
+    background-color: var(--color-accent, #93c5fd);
+}
+
+.select option {
+    color: var(--fill-primary, #0f172a);
+    background-color: var(--material-toolbar, #f8fafc);
 }
 
 .select {

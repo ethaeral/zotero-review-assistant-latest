@@ -1,15 +1,18 @@
-import { useEffect } from "react";
-import { KeyboardShortcutOptions, KeyCombination } from "../../types/types";
+import { useEffect } from "react"
+import { KeyboardShortcutOptions, KeyCombination } from "../../types/types"
 
-// Keyboard Shortcuts
-const keyboardShortcutManager = new class {
-    private shortcuts: KeyboardShortcutOptions[] = [];
-    public initialized: boolean = false
+function keystrokeKey(keystroke: KeyCombination) {
+    return `${keystroke.code}-${keystroke.ctrlKey}-${keystroke.altKey}-${keystroke.shiftKey}-${keystroke.metaKey}`
+}
 
-    private handleKeyDown(event: KeyboardEvent) {
+const keyboardShortcutManager = new (class {
+    private shortcuts: KeyboardShortcutOptions[] = []
+    public initialized = false
+
+    private handleKeyDown = (event: KeyboardEvent) => {
         for (const shortcut of this.shortcuts) {
-
-            if (event.code === shortcut.keystroke.code &&
+            if (
+                event.code === shortcut.keystroke.code &&
                 event.ctrlKey === shortcut.keystroke.ctrlKey &&
                 event.shiftKey === shortcut.keystroke.shiftKey &&
                 event.altKey === shortcut.keystroke.altKey &&
@@ -23,19 +26,45 @@ const keyboardShortcutManager = new class {
     }
 
     public init() {
-        if (this.initialized) return;
-        document.documentElement.addEventListener("keydown", this.handleKeyDown.bind(this))
+        if (this.initialized) {
+            return
+        }
+        document.documentElement.addEventListener("keydown", this.handleKeyDown)
         this.initialized = true
     }
 
     public addShortcut(options: KeyboardShortcutOptions) {
-        this.shortcuts.push(options);
+        this.shortcuts.push(options)
     }
+
+    public removeShortcut(options: KeyboardShortcutOptions) {
+        this.shortcuts = this.shortcuts.filter(
+            (entry) =>
+                entry.callback !== options.callback ||
+                keystrokeKey(entry.keystroke) !== keystrokeKey(options.keystroke),
+        )
+    }
+
+})()
+
+export function useKeyboardShortcut(keystroke: KeyCombination, callback: () => void, deps: unknown[] = []) {
+    useEffect(() => {
+        keyboardShortcutManager.init()
+        const entry = { keystroke, callback }
+        keyboardShortcutManager.addShortcut(entry)
+        return () => keyboardShortcutManager.removeShortcut(entry)
+    }, deps)
 }
 
-export function useKeyboardShortcut(keystroke: KeyCombination, callback: () => void, deps: any[] = []) {
+export function useKeyboardShortcutManager(shortcuts: KeyboardShortcutOptions[], deps: unknown[] = []) {
     useEffect(() => {
-        if (!keyboardShortcutManager.initialized) keyboardShortcutManager.init()
-        keyboardShortcutManager.addShortcut({ keystroke, callback: () => { callback(deps) } });
-    });
+        keyboardShortcutManager.init()
+        const deduped = shortcuts.filter(
+            (shortcut, index, list) =>
+                list.findIndex((other) => keystrokeKey(other.keystroke) === keystrokeKey(shortcut.keystroke)) === index,
+        )
+        const entries = deduped.map((shortcut) => ({ ...shortcut }))
+        entries.forEach((entry) => keyboardShortcutManager.addShortcut(entry))
+        return () => entries.forEach((entry) => keyboardShortcutManager.removeShortcut(entry))
+    }, deps)
 }

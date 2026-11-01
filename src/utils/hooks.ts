@@ -6,7 +6,7 @@
 import { useContextMenu } from "./hooks/menu";
 import { useDialog } from "./hooks/dialog";
 import { useExtraColumn } from "./hooks/columns";
-import { useKeyboardShortcut } from "./hooks/keyboard";
+import { useKeyboardShortcut, useKeyboardShortcutManager } from "./hooks/keyboard";
 import { usePref } from "./hooks/prefs";
 import { usePreferencesPanel, usePreferencesPanelReact } from "./hooks/preferences";
 
@@ -18,6 +18,7 @@ export {
     useDialog,
     useExtraColumn,
     useKeyboardShortcut,
+    useKeyboardShortcutManager,
     usePref,
     usePreferencesPanel,
     usePreferencesPanelReact,

@@ -9,7 +9,7 @@ interface FormData {
 import Modal, { ModalComponent } from "../components/modal"
 import { getPRISMALabel, setItemComments, setItemPRISMACategory, setItemStatus } from "../utils/columns.utils"
 import { useKeyboardShortcut, usePref } from "../utils/hooks"
-import { PropsWithChildren, ReactElement, Ref, useImperativeHandle, useRef, useState } from "react"
+import { ReactElement, Ref, useImperativeHandle, useRef, useState } from "react"
 import { KeyCombination, usePrefStateFunction } from "../types/types"
 import { getKeyCombination, getMatchingTag, getStatus, getTagsFromCurrentLibrary, mergeRefs } from "../utils/utils";
 import { useAutocomplete } from "../components/hooks/autocomplete";
@@ -21,7 +21,7 @@ import { log } from "../utils/devtools";
 export interface StatusViewComponent {
     edit: () => void
 }
-export default function StatusView({ ref }: { ref: Ref<StatusViewComponent> }): ReactElement & StatusViewComponent {
+export default function StatusView({ ref }: { ref: Ref<StatusViewComponent> }): ReactElement {
 
     // console.log("STATUS")
 
@@ -90,6 +90,15 @@ export default function StatusView({ ref }: { ref: Ref<StatusViewComponent> }): 
         }
         setArticles(selectedArticles)
         setIsCommentsModalOpen(true)
+
+        if (selectedArticles.length === 1) {
+            setValue("status", getStatus(selectedArticles[0], statusList)?.tag || "")
+            setValue("prisma", getMatchingTag(selectedArticles[0], prismaCategories.map(cat => cat.tag)) || "")
+        } else {
+            setValue("status", "")
+            setValue("prisma", "")
+        }
+        setTimeout(() => setFocus("comments"), 0)
     }
 
     // Expose the triggerEdit function
@@ -119,16 +128,6 @@ export default function StatusView({ ref }: { ref: Ref<StatusViewComponent> }): 
     }
 
     const modalRef = useRef<ModalComponent>(null)
-
-    // Load form
-    // If single article
-    if (articles.length == 1) {
-        // setCurrentStatus(getStatus(articles[0], statusList))
-        setValue("status", getMatchingTag(articles[0], statusList.map(stat => stat.tag)) || "")
-        setValue("status", getStatus(articles[0], statusList)?.tag || "")
-        setValue("prisma", getMatchingTag(articles[0], prismaCategories.map(cat => cat.tag)) || "")
-    }
-    setFocus("comments")
 
     return <>
         <Modal
@@ -224,7 +223,7 @@ interface AutocompleteProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export interface AutocompleteComponent {
     close: () => void
 }
-function Autocomplete({ ref, autocompleteList, handleSelection, inputRef, ...props }: AutocompleteProps): ReactElement & AutocompleteComponent {
+function Autocomplete({ ref, autocompleteList, handleSelection, inputRef, ...props }: AutocompleteProps): ReactElement {
 
     log("List", autocompleteList)
     // Hooks
@@ -246,9 +245,9 @@ function Autocomplete({ ref, autocompleteList, handleSelection, inputRef, ...pro
             onKeyDown={onKeyDown}
             onKeyUp={onKeyUp}
         />
-        <div className={`absolute top-full w-80 max-h-64 flex flex-col overflow-hidden rounded border border-slate-200 bg-slate-50 shadow-lg ${isOpen && suggestions.length > 0 ? "" : "hidden"}`}>
+        <div className={`autocomplete-dropdown absolute top-full w-80 max-h-64 flex flex-col overflow-hidden rounded border shadow-lg ${isOpen && suggestions.length > 0 ? "" : "hidden"}`}>
             {suggestions.map((suggestion, index) => (
-                <div key={index} className={`p-3 text-sm ${selectedIndex == index ? "bg-blue-200 hover:bg-blue-400" : "hover:bg-slate-200"}`} onClick={() => { console.log("SELECT", suggestion); handleSelection(suggestion) }}>
+                <div key={index} className={`autocomplete-option p-3 text-sm ${selectedIndex == index ? "autocomplete-option-selected" : ""}`} onClick={() => { handleSelection(suggestion) }}>
                     {suggestion}
                 </div>
             ))}

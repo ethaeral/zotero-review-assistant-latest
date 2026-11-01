@@ -124,7 +124,7 @@ export async function getTagsFromCurrentLibrary(): Promise<string[]> {
 }
 
 export function mergeRefs(...refs: Ref<HTMLElement>[]) {
-    return (value) => {
+    return (value: HTMLElement | null) => {
         refs.forEach(ref => {
             if (typeof ref === 'function') {
                 ref(value);
