@@ -2,8 +2,8 @@
     "manifest_version": 2,
     "name": "Zotero Review Assistant",
     "description": "Zotero Review Assistant",
-    "homepage_url": "https://github.com/alima-webdev/zotero-review-assistant#readme",
-    "author": "Alex Lima",
+    "homepage_url": "https://github.com/ethaeral/zotero-review-assistant-latest#readme",
+    "author": "Alex Lima; ethaeral",
     "icons": {
         "48": "assets/icons/favicon.svg",
         "96": "assets/icons/favicon.svg"
