@@ -18,6 +18,15 @@ prefs-table-keyboardshortcut = Keyboard Shortcut
 
 context-menu-status = Review Assistant
 
+zra-context-review-status =
+    .label = Review: { $status }
+
+zra-context-edit-review =
+    .label = Edit Review Info
+
+zra-context-generate-prisma =
+    .label = Generate PRISMA Diagram
+
 reason-dialog-title = Reason
 reason-dialog-text = Provide a reason for the selected status (optional)
 reason-column-header = Reason

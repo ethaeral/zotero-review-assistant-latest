@@ -6,10 +6,11 @@ import Table from "../components/table"
 import Modal from "../components/modal"
 import KeystrokeInput from "../components/keystrokeInput/keystrokeInput"
 import { usePref } from "../utils/hooks"
-import { getKeyCombination, getStringFromKeyCombination, JSONFromString } from "../utils/utils"
+import { getStringFromKeyCombination, JSONFromString } from "../utils/utils"
 
-import { usePrefStateFunction } from "../types/types"
+import { KeyCombination, usePrefStateFunction } from "../types/types"
 import { ArticleStatus, PRISMACategory } from "../types/addon"
+import { Keystroke } from "../components/keystrokeInput/keystrokeInputUtils"
 
 import { log } from "../utils/devtools"
 
@@ -23,6 +24,27 @@ function PreferencePane() {
     const [prismaCategories, setPrismaCategories] = usePref("prismaCategories", defaultPreferences.prismaCategories, {
         parseJSON: true,
     }) as [PRISMACategory[], usePrefStateFunction]
+    const [commentsTagPrefix, setCommentsTagPrefix] = usePref(
+        "commentsTagPrefix",
+        defaultPreferences.commentsTagPrefix,
+    ) as [string, usePrefStateFunction]
+    const [prismaTagPrefix, setPrismaTagPrefix] = usePref("prismaTagPrefix", defaultPreferences.prismaTagPrefix) as [
+        string,
+        usePrefStateFunction,
+    ]
+    const [editStatusShortcut, setEditStatusShortcut] = usePref(
+        "editStatusShortcut",
+        defaultPreferences.editStatusShortcut,
+        { parseJSON: true },
+    ) as [KeyCombination, usePrefStateFunction]
+    const [generatePRISMAShortcut, setGeneratePRISMAShortcut] = usePref(
+        "generatePRISMAShortcut",
+        defaultPreferences.generatePRISMAShortcut,
+        { parseJSON: true },
+    ) as [KeyCombination, usePrefStateFunction]
+
+    const [selectedStatusIndex, setSelectedStatusIndex] = useState<number | null>(null)
+    const [selectedPrismaIndex, setSelectedPrismaIndex] = useState<number | null>(null)
 
     const statusData = [...statusList]
     const statusColumns = [
@@ -90,6 +112,53 @@ function PreferencePane() {
         handleSubmit: handlePrismaSubmit,
         setValue: setPrismaValue,
     } = useForm<PrismaFormData>()
+
+    const { control: panelShortcutControl, setValue: setPanelShortcutValue } = useForm({
+        values: {
+            editStatusShortcut: JSON.stringify(editStatusShortcut),
+            generatePRISMAShortcut: JSON.stringify(generatePRISMAShortcut),
+        },
+    })
+
+    const keystrokeToKeyCombination = (keystroke: Keystroke): KeyCombination => {
+        const code =
+            keystroke.code.startsWith("Key") || keystroke.code.startsWith("Digit")
+                ? keystroke.code
+                : keystroke.code
+                  ? `Key${keystroke.code}`
+                  : ""
+        return {
+            altKey: keystroke.modifiers.alt,
+            ctrlKey: keystroke.modifiers.ctrl,
+            metaKey: keystroke.modifiers.meta,
+            shiftKey: keystroke.modifiers.shift,
+            code,
+        }
+    }
+
+    const deleteSelectedStatus = () => {
+        if (selectedStatusIndex === null) {
+            return
+        }
+        const label = statusList[selectedStatusIndex]?.label ?? "this status"
+        if (!window.confirm(`Delete status "${label}"?`)) {
+            return
+        }
+        setStatusList(statusList.filter((_, index) => index !== selectedStatusIndex))
+        setSelectedStatusIndex(null)
+    }
+
+    const deleteSelectedPrismaCategory = () => {
+        if (selectedPrismaIndex === null) {
+            return
+        }
+        const label = prismaCategories[selectedPrismaIndex]?.label ?? "this category"
+        if (!window.confirm(`Delete PRISMA category "${label}"?`)) {
+            return
+        }
+        setPrismaCategories(prismaCategories.filter((_, index) => index !== selectedPrismaIndex))
+        setSelectedPrismaIndex(null)
+    }
 
     const onStatusSubmit = ({
         index,
@@ -163,8 +232,21 @@ function PreferencePane() {
             <div className="flex flex-col gap-8">
                 <section className="flex flex-col gap-4">
                     <h2 className="text-lg font-semibold">Article statuses</h2>
-                    <Table columns={statusColumns} data={statusData} onDoubleClick={statusDoubleClickHandler} />
+                    <Table
+                        columns={statusColumns}
+                        data={statusData}
+                        onDoubleClick={statusDoubleClickHandler}
+                        onSelect={(_item, index) => setSelectedStatusIndex(index)}
+                    />
                     <div className="flex flex-row gap-4">
+                        <button
+                            type="button"
+                            className="btn btn-clear"
+                            disabled={selectedStatusIndex === null}
+                            onClick={deleteSelectedStatus}
+                        >
+                            Delete Selected Status
+                        </button>
                         <button
                             type="button"
                             className="btn btn-primary"
@@ -188,8 +270,21 @@ function PreferencePane() {
 
                 <section className="flex flex-col gap-4">
                     <h2 className="text-lg font-semibold">PRISMA categories</h2>
-                    <Table columns={prismaColumns} data={prismaData} onDoubleClick={prismaDoubleClickHandler} />
+                    <Table
+                        columns={prismaColumns}
+                        data={prismaData}
+                        onDoubleClick={prismaDoubleClickHandler}
+                        onSelect={(_item, index) => setSelectedPrismaIndex(index)}
+                    />
                     <div className="flex flex-row gap-4">
+                        <button
+                            type="button"
+                            className="btn btn-clear"
+                            disabled={selectedPrismaIndex === null}
+                            onClick={deleteSelectedPrismaCategory}
+                        >
+                            Delete Selected Category
+                        </button>
                         <button
                             type="button"
                             className="btn btn-primary"
@@ -214,15 +309,83 @@ function PreferencePane() {
                     </div>
                 </section>
 
-                <div className="flex flex-col gap-4">
-                    <div>
-                        <strong>Additional Shortcuts:</strong>
+                <section className="flex flex-col gap-4">
+                    <h2 className="text-lg font-semibold">Tag prefixes</h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Changing a prefix does not update tags already on items. New comments and PRISMA tags will use the
+                        updated prefix; retag existing items manually if needed.
+                    </p>
+                    <div className="flex flex-row gap-4">
+                        <div className="flex flex-col gap-2 flex-1">
+                            <label htmlFor="pref-comments-tag-prefix">Comments tag prefix</label>
+                            <input
+                                id="pref-comments-tag-prefix"
+                                className="input"
+                                value={commentsTagPrefix}
+                                onChange={(event) => setCommentsTagPrefix(event.target.value)}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 flex-1">
+                            <label htmlFor="pref-prisma-tag-prefix">PRISMA tag prefix</label>
+                            <input
+                                id="pref-prisma-tag-prefix"
+                                className="input"
+                                value={prismaTagPrefix}
+                                onChange={(event) => setPrismaTagPrefix(event.target.value)}
+                            />
+                        </div>
                     </div>
-                    <div>{getStringFromKeyCombination(getKeyCombination("Alt S"))} - Open Review Info Panel</div>
-                    <div>{getStringFromKeyCombination(getKeyCombination("Alt D"))} - Open Generate PRISMA Diagram Panel</div>
-                </div>
+                </section>
 
-                <div>Restart Zotero to apply changes to keyboard shortcuts and context menus.</div>
+                <section className="flex flex-col gap-4">
+                    <h2 className="text-lg font-semibold">Panel shortcuts</h2>
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="pref-edit-status-shortcut">Open Review Info Panel</label>
+                        <Controller
+                            name="editStatusShortcut"
+                            control={panelShortcutControl}
+                            render={({ field }) => (
+                                <KeystrokeInput
+                                    {...field}
+                                    id="pref-edit-status-shortcut"
+                                    className="input"
+                                    setValue={(_name, keystroke: Keystroke) => {
+                                        const combo = keystrokeToKeyCombination(keystroke)
+                                        setEditStatusShortcut(combo)
+                                        setPanelShortcutValue("editStatusShortcut", JSON.stringify(combo))
+                                    }}
+                                />
+                            )}
+                        />
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Current: {getStringFromKeyCombination(editStatusShortcut)}
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="pref-generate-prisma-shortcut">Open Generate PRISMA Diagram Panel</label>
+                        <Controller
+                            name="generatePRISMAShortcut"
+                            control={panelShortcutControl}
+                            render={({ field }) => (
+                                <KeystrokeInput
+                                    {...field}
+                                    id="pref-generate-prisma-shortcut"
+                                    className="input"
+                                    setValue={(_name, keystroke: Keystroke) => {
+                                        const combo = keystrokeToKeyCombination(keystroke)
+                                        setGeneratePRISMAShortcut(combo)
+                                        setPanelShortcutValue("generatePRISMAShortcut", JSON.stringify(combo))
+                                    }}
+                                />
+                            )}
+                        />
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Current: {getStringFromKeyCombination(generatePRISMAShortcut)}
+                        </div>
+                    </div>
+                </section>
+
+                <div>Restart Zotero to apply changes to context menus.</div>
             </div>
 
             <Modal

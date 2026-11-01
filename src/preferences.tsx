@@ -1,56 +1,70 @@
 // External Dependencies
-import { createRoot } from 'react-dom/client';
+import { createRoot } from "react-dom/client"
 
 // Internal Dependencies
-import { getPluginInfo, setPluginInfo } from './utils/pluginInfo';
+import { setPluginInfo } from "./utils/pluginInfo"
 import PreferencePane from "./views/preferencesView"
 
-// Types
-import { AddonInitProps } from './types/types';
-
 // Devtools
-import { log, wait } from './utils/devtools';
+import { log } from "./utils/devtools"
 
+const MAX_INIT_ATTEMPTS = 30
+const INIT_RETRY_MS = 100
 
+function readPluginInfoFromDom(): {
+    id: string
+    version: string
+    rootURI: string
+    referenceName: string
+} | null {
+    const container = document.querySelector("[data-plugin-id][data-plugin-referencename]")
+    if (!container) {
+        return null
+    }
 
-import pkg from "../package.json" assert { type: "json" };
-// Init function
-// export function init({ id, version, rootURI, referenceName }: AddonInitProps) {
+    const id = container.getAttribute("data-plugin-id")
+    const version = container.getAttribute("data-plugin-version")
+    const rootURI = container.getAttribute("data-plugin-rooturi")
+    const referenceName = container.getAttribute("data-plugin-referencename")
 
-// Define the globals.info object
-// setPluginInfo({ id, version, rootURI, referenceName })
+    if (!id || !version || !rootURI || !referenceName) {
+        return null
+    }
 
-function getPreferencePane(id: string) {
-    return Zotero.PreferencePanes.pluginPanes.find(p => p.pluginID === id)
+    return { id, version, rootURI, referenceName }
 }
-const pluginId = pkg["zotero-react"].plugin.id
-const prefPane = getPreferencePane(pluginId)
 
-setPluginInfo({
-    id: pluginId,
-    version: pkg.version,
-    rootURI: `chrome://${pluginId}/content/`,
-    referenceName: pkg["zotero-react"].plugin.namespace,
-})
+function initPreferencesPane(attempt = 0) {
+    const pluginInfo = readPluginInfoFromDom()
+    if (!pluginInfo) {
+        if (attempt >= MAX_INIT_ATTEMPTS) {
+            Zotero.logError("Zotero Review Assistant: preferences pane container not found")
+            return
+        }
+        window.setTimeout(() => initPreferencesPane(attempt + 1), INIT_RETRY_MS)
+        return
+    }
 
-async function initPreferencesPane() {
-    await wait(1000)
-    if (document.querySelector(`[data-plugin-id="${pluginId}"]`) === null) {
-        initPreferencesPane()
-        return;
+    setPluginInfo(pluginInfo)
+
+    const app = document.querySelector(`[data-plugin-id="${pluginInfo.id}"] #app`) as HTMLElement | null
+    if (!app) {
+        if (attempt >= MAX_INIT_ATTEMPTS) {
+            Zotero.logError("Zotero Review Assistant: preferences pane #app mount point not found")
+            return
+        }
+        window.setTimeout(() => initPreferencesPane(attempt + 1), INIT_RETRY_MS)
+        return
     }
 
     document.querySelector("window")?.addEventListener("beforeunload", () => {
         log("Unloading Preferences Pane")
     })
 
-    const container = document.querySelector(`[data-plugin-id="${pluginId}"] #app`) as HTMLElement
-    log("###############################################################")
+    log("Initializing Preferences Pane", app)
 
-    log("index.tsx: Initializing Preferences Pane")
-    log(container)
-
-    const root = createRoot(container)
+    const root = createRoot(app)
     root.render(<PreferencePane />)
 }
+
 initPreferencesPane()

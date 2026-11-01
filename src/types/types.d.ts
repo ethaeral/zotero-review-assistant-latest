@@ -66,4 +66,5 @@ type TableProps = {
     columns: TableColumn[]
     data: any[],
     onDoubleClick?: (item: any, index: number) => void
+    onSelect?: (item: any, index: number) => void
 }

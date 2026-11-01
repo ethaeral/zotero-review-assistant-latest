@@ -14,9 +14,19 @@ const setupWindows = new WeakSet<Window>()
 const reactRoots = new WeakMap<Window, Root>()
 let preferencesRegistered = false
 
+function loadAddonFluent(win: Window, rootURI: string) {
+    const ftlHref = rootURI + "assets/locale/en-US/addon.ftl"
+    const mozXUL = win.MozXULElement as typeof win.MozXULElement & {
+        insertFTLIfNeeded?: (href: string) => void
+    }
+    mozXUL?.insertFTLIfNeeded?.(ftlHref)
+}
+
 export async function setupMainWindow(win: Window) {
-    const { id, referenceName } = getPluginInfo()
+    const { id, referenceName, rootURI } = getPluginInfo()
     ensurePluginWindowApi(win)
+
+    loadAddonFluent(win, rootURI)
 
     await registerExtraColumns(id)
     await refreshItemTreeColumns()

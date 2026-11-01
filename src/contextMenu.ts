@@ -9,15 +9,19 @@ import { getZoteroPref } from "./utils/prefs"
 import { JSONFromString } from "./utils/utils"
 
 const ZRA_MENU_ATTR = "data-zra-menu"
-const registeredMenuManagerIds: string[] = []
+const LIBRARY_ITEM_REVIEW_MENU_ID = "zra-library-item-review"
 
-type MenuManagerApi = {
-    registerMenu: (options: Record<string, unknown>) => void
-    unregisterMenu: (menuID: string) => void
+type LibraryMenuData = _ZoteroTypes.MenuManager.MenuData<_ZoteroTypes.MenuManager.LibraryMenuContext>
+
+type PluginWindowApi = {
+    editStatus?: () => void
+    generatePRISMADiagram?: () => void
 }
 
-function getMenuManager(): MenuManagerApi | undefined {
-    return (Zotero as typeof Zotero & { MenuManager?: MenuManagerApi }).MenuManager
+let registeredMenuManagerId: string | null = null
+
+function getMenuManager(): _ZoteroTypes.MenuManager | undefined {
+    return (Zotero as typeof Zotero & { MenuManager?: _ZoteroTypes.MenuManager }).MenuManager
 }
 
 function getStatusList(): ArticleStatus[] {
@@ -30,7 +34,7 @@ function getStatusList(): ArticleStatus[] {
 
 function buildMenuItems(referenceName: string): MenuItem[] {
     const statusList = getStatusList()
-    const win = Zotero.getMainWindow() as Window & Record<string, { editStatus?: () => void; generatePRISMADiagram?: () => void } | undefined>
+    const win = Zotero.getMainWindow() as Window & Record<string, PluginWindowApi | undefined>
 
     const items: MenuItem[] = [{ type: "menuseparator" }]
 
@@ -64,22 +68,58 @@ function buildMenuItems(referenceName: string): MenuItem[] {
     return items
 }
 
-function unregisterMenuManagerMenus() {
-    const menuManager = getMenuManager()
-    if (!menuManager) {
-        return
+function buildMenuManagerMenus(
+    win: Window,
+    referenceName: string,
+    statusList: ArticleStatus[],
+): LibraryMenuData[] {
+    const pluginWin = win as Window & Record<string, PluginWindowApi | undefined>
+
+    const menus: LibraryMenuData[] = [{ menuType: "separator" }]
+
+    for (const status of statusList) {
+        menus.push({
+            menuType: "menuitem",
+            l10nID: "zra-context-review-status",
+            onShowing: (_event, context) => {
+                context.setL10nArgs({ status: status.label })
+            },
+            onCommand: () => {
+                setItemStatus(statusList, status)
+            },
+        })
     }
-    for (const menuID of registeredMenuManagerIds) {
-        try {
-            menuManager.unregisterMenu(menuID)
-        } catch {
-            /* menu may already be gone */
-        }
-    }
-    registeredMenuManagerIds.length = 0
+
+    menus.push({ menuType: "separator" })
+    menus.push({
+        menuType: "menuitem",
+        l10nID: "zra-context-edit-review",
+        onCommand: () => pluginWin[referenceName]?.editStatus?.(),
+    })
+    menus.push({
+        menuType: "menuitem",
+        l10nID: "zra-context-generate-prisma",
+        onCommand: () => pluginWin[referenceName]?.generatePRISMADiagram?.(),
+    })
+
+    return menus
 }
 
-function registerMenuManagerMenus(referenceName: string) {
+export function unregisterMenuManagerMenus() {
+    const menuManager = getMenuManager()
+    if (!menuManager || !registeredMenuManagerId) {
+        registeredMenuManagerId = null
+        return
+    }
+    try {
+        menuManager.unregisterMenu(registeredMenuManagerId)
+    } catch {
+        /* menu may already be gone */
+    }
+    registeredMenuManagerId = null
+}
+
+function registerMenuManagerMenus(win: Window, referenceName: string): boolean {
     const menuManager = getMenuManager()
     if (!menuManager) {
         return false
@@ -89,40 +129,20 @@ function registerMenuManagerMenus(referenceName: string) {
 
     const { id: pluginID } = getPluginInfo()
     const statusList = getStatusList()
-    const win = Zotero.getMainWindow() as Window & Record<string, { editStatus?: () => void; generatePRISMADiagram?: () => void } | undefined>
+    const menus = buildMenuManagerMenus(win, referenceName, statusList)
 
-    const register = (menuID: string, options: Record<string, unknown>) => {
-        menuManager.registerMenu({
-            target: "main/library/item",
-            pluginID,
-            menuID,
-            ...options,
-        })
-        registeredMenuManagerIds.push(menuID)
+    const registeredID = menuManager.registerMenu({
+        menuID: LIBRARY_ITEM_REVIEW_MENU_ID,
+        pluginID,
+        target: "main/library/item",
+        menus,
+    })
+
+    if (registeredID === false) {
+        return false
     }
 
-    register("zra-separator-start", { menuType: "separator" })
-
-    statusList.forEach((status, index) => {
-        register(`zra-status-${index}`, {
-            menuType: "menuitem",
-            label: `Review: ${status.label}`,
-            onCommand: () => setItemStatus(statusList, status),
-        })
-    })
-
-    register("zra-separator-mid", { menuType: "separator" })
-    register("zra-edit-review", {
-        menuType: "menuitem",
-        label: "Edit Review Info",
-        onCommand: () => win[referenceName]?.editStatus?.(),
-    })
-    register("zra-generate-prisma", {
-        menuType: "menuitem",
-        label: "Generate PRISMA Diagram",
-        onCommand: () => win[referenceName]?.generatePRISMADiagram?.(),
-    })
-
+    registeredMenuManagerId = LIBRARY_ITEM_REVIEW_MENU_ID
     return true
 }
 
@@ -149,7 +169,7 @@ function registerLegacyContextMenu(win: Window, referenceName: string) {
 export async function registerReviewContextMenu(win: Window) {
     const { referenceName } = getPluginInfo()
 
-    if (!registerMenuManagerMenus(referenceName)) {
+    if (!registerMenuManagerMenus(win, referenceName)) {
         registerLegacyContextMenu(win, referenceName)
     }
 }

@@ -11,7 +11,12 @@ import { TableProps } from "../types/types"
 // Devtools
 import { log } from "../utils/devtools"
 
-function Table({ columns, data, onDoubleClick = (item: any, index: number) => { } }: TableProps) {
+function Table({
+    columns,
+    data,
+    onDoubleClick = (_item: any, _index: number) => {},
+    onSelect = (_item: any, _index: number) => {},
+}: TableProps) {
 
     // States
     const [selectedRow, setSelectedRow] = useState<number | null>(null)
@@ -48,7 +53,16 @@ function Table({ columns, data, onDoubleClick = (item: any, index: number) => { 
             {/* Rows */}
             <tbody>
                 {data.map((item, index) => (
-                    <tr key={index} onClick={() => { setSelectedRow(index) }} onDoubleClick={() => { onDoubleClick(item, index) }}>
+                    <tr
+                        key={index}
+                        onClick={() => {
+                            setSelectedRow(index)
+                            onSelect(item, index)
+                        }}
+                        onDoubleClick={() => {
+                            onDoubleClick(item, index)
+                        }}
+                    >
                         {columns.map((col, cellIndex) => {
                             const name = col.name as keyof typeof item
                             const value = (col.labelFn ? col.labelFn(item) : item[name]) as string
